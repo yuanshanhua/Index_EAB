@@ -194,12 +194,12 @@ def get_heu_result(args, algos, work_list):
             indexes = [str(ind) for ind in indexes]
             cols = [ind.split(",") for ind in indexes]
             cols = [list(map(lambda x: x.split(".")[-1], col)) for col in cols]
-            indexes = [
-                f"{ind.split('.')[0]}#{','.join(col)}"
-                for ind, col in zip(indexes, cols)
-            ]
             indexes_res = [
                 f"{ind.split('.')[0]}({','.join(col)})"
+                for ind, col in zip(indexes, cols)
+            ]
+            indexes = [
+                f"{ind.split('.')[0]}#{','.join(col)}"
                 for ind, col in zip(indexes, cols)
             ]
 
