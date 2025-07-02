@@ -1,29 +1,42 @@
-import os
-import random
-import sys
+import argparse
+import configparser
 import copy
 import json
 import logging
-import pickle
-import argparse
-import configparser
+import random
+import sys
 
-from index_advisor_selector.index_selection.heu_selection.heu_utils.workload import Workload, Table, Column, Query
-from index_advisor_selector.index_selection.heu_selection.heu_utils.constants import tpch_tables, tpcds_tables, job_table_alias
+from index_advisor_selector.index_selection.heu_selection.heu_utils.constants import (
+    job_table_alias,
+    tpcds_tables,
+    tpch_tables,
+)
+from index_advisor_selector.index_selection.heu_selection.heu_utils.workload import (
+    Column,
+    Query,
+    Table,
+    Workload,
+)
 
 
 def get_parser():
     parser = argparse.ArgumentParser(
-        description="the ISP solved by Heuristic-based Methods.")
+        description="the ISP solved by Heuristic-based Methods.",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter,
+    )
 
     parser.add_argument("--algo", type=str, default=None)
     parser.add_argument("--seed", type=int, default=666)
     parser.add_argument("--sel_params", type=str, default="parameters")
-    parser.add_argument("--exp_conf_file", type=str,
-                        default="/data/wz/index/index_eab/eab_data/heu_run_conf/{}_config_tpch.json")
+    parser.add_argument(
+        "--exp_conf_file",
+        type=str,
+        default="/data/wz/index/index_eab/eab_data/heu_run_conf/{}_config_tpch.json",
+    )
 
-    parser.add_argument("--constraint", type=str, default="storage",
-                        choices=["storage", "number"])
+    parser.add_argument(
+        "--constraint", type=str, default="storage", choices=["storage", "number"]
+    )
     parser.add_argument("--budget_MB", type=int, default=500)
     parser.add_argument("--max_indexes", type=int, default=5)
 
@@ -33,36 +46,64 @@ def get_parser():
     parser.add_argument("--overhead", action="store_true")
     parser.add_argument("--varying_frequencies", action="store_true")
 
-    parser.add_argument("--cand_gen", type=str, default=None,
-                        choices=["permutation", "dqn_rule", "openGauss"])
+    parser.add_argument(
+        "--cand_gen",
+        type=str,
+        default=None,
+        choices=["permutation", "dqn_rule", "openGauss"],
+    )
     parser.add_argument("--is_utilized", action="store_true")  # , default=True
     parser.add_argument("--multi_column", action="store_true")  # , default=True
 
-    parser.add_argument("--est_model", type=str, default="optimizer",
-                        choices=["optimizer", "tree", "lib", "queryformer"])
+    parser.add_argument(
+        "--est_model",
+        type=str,
+        default="optimizer",
+        choices=["optimizer", "tree", "lib", "queryformer"],
+    )
 
-    parser.add_argument("--sel_oracle", type=str, default=None,
-                        choices=["cost_per_sto", "cost_pure", "benefit_per_sto", "benefit_pure"])
+    parser.add_argument(
+        "--sel_oracle",
+        type=str,
+        default=None,
+        choices=["cost_per_sto", "cost_pure", "benefit_per_sto", "benefit_pure"],
+    )
 
-    parser.add_argument("--work_file", type=str,
-                        default="/data/wz/index/index_eab/eab_olap/bench_temp/tpch_template_18.sql")
+    parser.add_argument(
+        "--work_file",
+        type=str,
+        default="/data/wz/index/index_eab/eab_olap/bench_temp/tpch_template_18.sql",
+    )
 
-    parser.add_argument("--db_conf_file", type=str,
-                        default="/data/wz/index/index_eab/eab_data/db_info_conf/local_db103_tpch_1gb.conf")
-    parser.add_argument("--schema_file", type=str,
-                        default="/data/wz/index/index_eab/eab_data/db_info_conf/schema_tpch_1gb.json")
+    parser.add_argument(
+        "--db_conf_file",
+        type=str,
+        default="/data/wz/index/index_eab/eab_data/db_info_conf/local_db103_tpch_1gb.conf",
+    )
+    parser.add_argument(
+        "--schema_file",
+        type=str,
+        default="/data/wz/index/index_eab/eab_data/db_info_conf/schema_tpch_1gb.json",
+    )
 
     parser.add_argument("--res_save", type=str)  # , required=True
 
     # (1211): newly added. for `cophy`
     parser.add_argument("--ampl_solver", type=str, default="highs")
-    parser.add_argument("--ampl_bin_path", type=str,
-                        default="/data1/wz/ampl.linux-intel64")
-    parser.add_argument("--ampl_mod_path", type=str,
-                        default="/data1/wz/index/index_eab/eab_data/heu_run_conf/cophy_ampl_model_{}.mod")
-    parser.add_argument("--ampl_dat_path", type=str,
-                        default="/data1/wz/index/index_eab/eab_olap/bench_result/tpch/"
-                                "work_level/tpch_1gb_template_18_multi_work_index_cophy.txt")
+    parser.add_argument(
+        "--ampl_bin_path", type=str, default="/data1/wz/ampl.linux-intel64"
+    )
+    parser.add_argument(
+        "--ampl_mod_path",
+        type=str,
+        default="/data1/wz/index/index_eab/eab_data/heu_run_conf/cophy_ampl_model_{}.mod",
+    )
+    parser.add_argument(
+        "--ampl_dat_path",
+        type=str,
+        default="/data1/wz/index/index_eab/eab_olap/bench_result/tpch/"
+        "work_level/tpch_1gb_template_18_multi_work_index_cophy.txt",
+    )
 
     parser.add_argument("--host", type=str, default=None)
     parser.add_argument("--db_name", type=str, default=None)
@@ -102,8 +143,9 @@ def set_logger(log_file):
     logger = logging.getLogger()
     logger.setLevel(logging.DEBUG)
     formatter = logging.Formatter(
-        '%(asctime)s - %(name)s - %(levelname)s: - %(message)s',
-        datefmt='%Y-%m-%d %H:%M:%S')
+        "%(asctime)s - %(name)s - %(levelname)s: - %(message)s",
+        datefmt="%Y-%m-%d %H:%M:%S",
+    )
 
     # log to file
     fh = logging.FileHandler(log_file)
@@ -185,14 +227,18 @@ def get_columns_from_schema(schema_file):
     return tables, columns
 
 
-def read_row_query(sql_list, exp_conf, columns, type="template",
-                   varying_frequencies=False, seed=666):
+def read_row_query(
+    sql_list, exp_conf, columns, type="template", varying_frequencies=False, seed=666
+):
     random.seed(seed)
 
     workload = list()
     for query_id, query_text in enumerate(sql_list):
-        if type == "template" and exp_conf["queries"] \
-                and query_id + 1 not in exp_conf["queries"]:
+        if (
+            type == "template"
+            and exp_conf["queries"]
+            and query_id + 1 not in exp_conf["queries"]
+        ):
             continue
 
         # (0824): newly modified.
@@ -212,29 +258,42 @@ def read_row_query(sql_list, exp_conf, columns, type="template",
         for column in columns:
             column_tmp = [col for col in columns if column.name == col.name]
             if len(column_tmp) == 1:
-                if column.name in query.text.lower() and \
-                        f"{column.table.name}" in query.text.lower():
+                if (
+                    column.name in query.text.lower()
+                    and f"{column.table.name}" in query.text.lower()
+                ):
                     query.columns.append(column)
             else:
-                if column.table.name not in tpch_tables + tpcds_tables + list(job_table_alias.keys()):
-                    if column.name in query.text.lower() and \
-                            f"{column.table.name}" in query.text.lower():
+                if column.table.name not in tpch_tables + tpcds_tables + list(
+                    job_table_alias.keys()
+                ):
+                    if (
+                        column.name in query.text.lower()
+                        and f"{column.table.name}" in query.text.lower()
+                    ):
                         query.columns.append(column)
                 else:
                     # if column.name in query.text and column.table.name in query.text:
                     # if " " + column.name + " " in query.text and column.table.name in query.text:
                     # (0329): newly modified. for JOB,
                     #  SELECT COUNT(*), too many candidates.
-                    if "." in query.text.lower().split("from")[0] or \
-                            ("where" in query.text.lower() and (
-                                    "." in query.text.lower().split("where")[0] or
-                                    "." in query.text.lower().split("where")[-1].split(" ")[1])):
+                    if "." in query.text.lower().split("from")[0] or (
+                        "where" in query.text.lower()
+                        and (
+                            "." in query.text.lower().split("where")[0]
+                            or "."
+                            in query.text.lower().split("where")[-1].split(" ")[1]
+                        )
+                    ):
                         if str(column) in query.text.lower():
                             query.columns.append(column)
                         if " as " in query.text.lower():
                             tbl, col = str(column).split(".")
-                            if f" {job_table_alias[tbl]}.{col}" in query.text.lower() \
-                                    or f"({job_table_alias[tbl]}.{col}" in query.text.lower():
+                            if (
+                                f" {job_table_alias[tbl]}.{col}" in query.text.lower()
+                                or f"({job_table_alias[tbl]}.{col}"
+                                in query.text.lower()
+                            ):
                                 query.columns.append(column)
                     # else:
                     #     # (0408): newly added. check?
@@ -262,29 +321,42 @@ def read_row_query_new(sql_list, columns):
         for column in columns:
             column_tmp = [col for col in columns if column.name == col.name]
             if len(column_tmp) == 1:
-                if column.name in query.text.lower() and \
-                        f"{column.table.name}" in query.text.lower():
+                if (
+                    column.name in query.text.lower()
+                    and f"{column.table.name}" in query.text.lower()
+                ):
                     query.columns.append(column)
             else:
-                if column.table.name not in tpch_tables + tpcds_tables + list(job_table_alias.keys()):
-                    if column.name in query.text.lower() and \
-                            f"{column.table.name}" in query.text.lower():
+                if column.table.name not in tpch_tables + tpcds_tables + list(
+                    job_table_alias.keys()
+                ):
+                    if (
+                        column.name in query.text.lower()
+                        and f"{column.table.name}" in query.text.lower()
+                    ):
                         query.columns.append(column)
                 else:
                     # if column.name in query.text and column.table.name in query.text:
                     # if " " + column.name + " " in query.text and column.table.name in query.text:
                     # (0329): newly modified. for JOB,
                     #  SELECT COUNT(*), too many candidates.
-                    if "." in query.text.lower().split("from")[0] or \
-                            ("where" in query.text.lower() and (
-                                    "." in query.text.lower().split("where")[0] or
-                                    "." in query.text.lower().split("where")[-1].split(" ")[1])):
+                    if "." in query.text.lower().split("from")[0] or (
+                        "where" in query.text.lower()
+                        and (
+                            "." in query.text.lower().split("where")[0]
+                            or "."
+                            in query.text.lower().split("where")[-1].split(" ")[1]
+                        )
+                    ):
                         if str(column) in query.text.lower():
                             query.columns.append(column)
                         if " as " in query_text.lower():
                             tbl, col = str(column).split(".")
-                            if f" {job_table_alias[tbl]}.{col}" in query.text.lower() \
-                                    or f"({job_table_alias[tbl]}.{col}" in query.text.lower():
+                            if (
+                                f" {job_table_alias[tbl]}.{col}" in query.text.lower()
+                                or f"({job_table_alias[tbl]}.{col}"
+                                in query.text.lower()
+                            ):
                                 query.columns.append(column)
                     # else:
                     #     # (0408): newly added. check?
@@ -339,7 +411,7 @@ def indexes_by_table(indexes):
 
 
 def get_utilized_indexes(
-        workload, indexes_per_query, cost_evaluation, detailed_query_information=False
+    workload, indexes_per_query, cost_evaluation, detailed_query_information=False
 ):
     utilized_indexes_workload = set()
     query_details = {}

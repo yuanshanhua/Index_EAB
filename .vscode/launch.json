@@ -1,0 +1,159 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Debug Heuristic Algorithm - Extend",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/heu_run.py",
+            "args": [
+                "--algo",
+                "extend",
+                "--db_conf_file",
+                "configuration_loader/database/db_con.conf",
+                "--schema_file",
+                "configuration_loader/database/schema_job.json",
+                "--exp_conf_file",
+                "configuration_loader/index_advisor/heu_run_conf/extend_config.json",
+                "--work_file",
+                "workload_generator/random1000.sql",
+                "--max_indexes",
+                "10",
+                "--max_index_width",
+                "5",
+                "--res_save",
+                "res.json"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/.env",
+            "justMyCode": false,
+            "stopOnEntry": false,
+            "logToFile": true,
+            "redirectOutput": true
+        },
+        {
+            "name": "Debug Heuristic Algorithm - Custom",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/heu_run.py",
+            "args": [
+                "--algo",
+                "${input:algorithm}",
+                "--db_conf_file",
+                "configuration_loader/database/db_con.conf",
+                "--schema_file",
+                "${input:schemaFile}",
+                "--exp_conf_file",
+                "${input:expConfFile}",
+                "--work_file",
+                "${input:workFile}",
+                "--max_indexes",
+                "${input:maxIndexes}",
+                "--max_index_width",
+                "${input:maxIndexWidth}",
+                "--res_save",
+                "res.json"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/.env",
+            "justMyCode": false,
+            "stopOnEntry": false,
+            "logToFile": true,
+            "redirectOutput": true
+        },
+        {
+            "name": "Debug Heuristic Algorithm - All Algorithms",
+            "type": "debugpy",
+            "request": "launch",
+            "program": "${workspaceFolder}/heu_run.py",
+            "args": [
+                "--db_conf_file",
+                "configuration_loader/database/db_con.conf",
+                "--schema_file",
+                "configuration_loader/database/schema_job.json",
+                "--work_file",
+                "workload_generator/random1000.sql",
+                "--max_indexes",
+                "10",
+                "--max_index_width",
+                "5",
+                "--res_save",
+                "res.json"
+            ],
+            "console": "integratedTerminal",
+            "cwd": "${workspaceFolder}",
+            "envFile": "${workspaceFolder}/.env",
+            "justMyCode": false,
+            "stopOnEntry": false,
+            "logToFile": true,
+            "redirectOutput": true
+        }
+    ],
+    "inputs": [
+        {
+            "id": "algorithm",
+            "description": "选择要运行的算法",
+            "type": "pickString",
+            "options": [
+                "extend",
+                "anytime",
+                "auto_admin",
+                "cophy",
+                "db2advis",
+                "drop",
+                "relaxation"
+            ],
+            "default": "extend"
+        },
+        {
+            "id": "schemaFile",
+            "description": "选择数据库模式文件",
+            "type": "pickString",
+            "options": [
+                "configuration_loader/database/schema_job.json",
+                "configuration_loader/database/schema_tpch.json",
+                "configuration_loader/database/schema_tpcds.json",
+                "configuration_loader/database/schema_tpcc.json",
+                "configuration_loader/database/schema_dsb.json",
+                "configuration_loader/database/schema_tpcch.json",
+                "configuration_loader/database/schema_tpch_skew.json"
+            ],
+            "default": "configuration_loader/database/schema_job.json"
+        },
+        {
+            "id": "expConfFile",
+            "description": "输入实验配置文件路径",
+            "type": "promptString",
+            "default": "configuration_loader/index_advisor/heu_run_conf/extend_config.json"
+        },
+        {
+            "id": "workFile",
+            "description": "选择工作负载文件",
+            "type": "pickString",
+            "options": [
+                "workload_generator/random1000.sql",
+                "workload_generator/template_based/job_work_temp_multi.json",
+                "workload_generator/template_based/tpch_work_temp_multi.json",
+                "workload_generator/template_based/tpcds_work_temp_multi.json",
+                "workload_generator/random/job_work_multi.json",
+                "workload_generator/random/tpch_work_multi.json",
+                "workload_generator/random/tpcds_work_multi.json"
+            ],
+            "default": "workload_generator/random1000.sql"
+        },
+        {
+            "id": "maxIndexes",
+            "description": "输入最大索引数量",
+            "type": "promptString",
+            "default": "10"
+        },
+        {
+            "id": "maxIndexWidth",
+            "description": "输入最大索引宽度",
+            "type": "promptString",
+            "default": "5"
+        }
+    ]
+}

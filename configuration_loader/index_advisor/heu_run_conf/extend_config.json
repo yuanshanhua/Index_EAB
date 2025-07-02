@@ -1,6 +1,6 @@
 {
     "database_system": "postgres",
-    "benchmark_name": "tpch",
+    "benchmark_name": "imdb",
     "scale_factor": 1,
     "pickle_workload": true,
     "algorithms": [
@@ -8,8 +8,8 @@
             "name": "extend",
             "parameters": {
                 "budget_MB": 500,
-                "max_index_width": 2,
-                "max_indexes": 3,
+                "max_index_width": 3,
+                "max_indexes": 5,
                 "constraint": "storage"
             },
             "number_of_actual_runs": 0,
