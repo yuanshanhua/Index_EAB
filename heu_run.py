@@ -296,8 +296,8 @@ def get_heu_result(args, algos, work_list):
 
 if __name__ == "__main__":
     """
-    uv run heu_run.py --work_file tpch_2000.sql \
-    --res_save tpch_2000.json \
+    uv run heu_run.py --work_file inputs/tpch_2000.sql \
+    --res_save res/tpch_2000.json \
     --algo extend \
     --exp_conf_file configuration_loader/index_advisor/heu_run_conf/extend_config.json \
     --schema_file configuration_loader/database/schema_tpch.json \
