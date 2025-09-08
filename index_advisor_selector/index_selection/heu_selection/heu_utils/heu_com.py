@@ -1,3 +1,5 @@
+from __future__ import annotations
+
 import argparse
 import configparser
 import copy
@@ -228,8 +230,13 @@ def get_columns_from_schema(schema_file):
 
 
 def read_row_query(
-    sql_list, exp_conf, columns, type="template", varying_frequencies=False, seed=666
-):
+    sql_list: list[str],
+    exp_conf,
+    columns,
+    type="template",
+    varying_frequencies=False,
+    seed=666,
+) -> list[Query]:
     random.seed(seed)
 
     workload = list()
@@ -254,6 +261,8 @@ def read_row_query(
             else:
                 freq = 1
             query = Query(query_id, query_text, frequency=freq)
+        else:
+            raise TypeError(f"Query format error: {query_text}")
 
         for column in columns:
             column_tmp = [col for col in columns if column.name == col.name]

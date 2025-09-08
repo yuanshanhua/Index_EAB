@@ -3,6 +3,7 @@
 # @Module: heu_run
 # @Author: Wei Zhou
 # @Time: 2023/8/16 14:42
+from __future__ import annotations
 
 import configparser
 import json
@@ -75,7 +76,7 @@ class IndexEncoder(json.JSONEncoder):
         return json.JSONEncoder.default(self, obj)
 
 
-def get_heu_result(args, algos, work_list):
+def get_heu_result(args, algos, work_list: list[str]):
     print(f"开始处理算法: {algos}")
     print(
         f"工作负载包含 {len(work_list) if hasattr(work_list, '__len__') else 'N/A'} 个查询"
@@ -326,11 +327,24 @@ if __name__ == "__main__":
     work_list = None
     if args.work_file.endswith(".sql"):
         with open(args.work_file, "r") as rf:
-            work_list = rf.readlines()
-        print(f"从SQL文件读取了 {len(work_list)} 行查询")
+            sqls = rf.readlines()
+        print(f"从SQL文件读取了 {len(sqls)} 行查询")
+        work_list = sqls
     elif args.work_file.endswith(".json"):
         with open(args.work_file, "r") as rf:
-            work_list = json.load(rf)
+            workloads = json.load(rf)
+        assert isinstance(workloads, list)
+        q: list[list[str]] = []
+        for workload in workloads:
+            assert isinstance(workload, dict)
+            assert "queries" in workload and isinstance(workload["queries"], list)
+            workload_sqls: list[str] = []
+            for query in workload["queries"]:
+                assert isinstance(query, dict)
+                assert "sql" in query and isinstance(query["sql"], str)
+                workload_sqls.append(query["sql"])
+            q.append(workload_sqls)
+        work_list = q
         print(f"从JSON文件读取了 {len(work_list)} 个工作负载")
 
     if work_list is None:
@@ -338,12 +352,12 @@ if __name__ == "__main__":
         exit(1)
 
     datas = []
-    for work_idx, work in enumerate(work_list, 1):
+    for work_idx, queries in enumerate(work_list, 1):
         print(f"=== 处理工作负载 {work_idx}/{len(work_list)} ===")
-        print(f"工作负载内容: {work}")
-        if isinstance(work, str):
-            work = [work]
-        data = get_heu_result(args, algos, work)
+        print(f"工作负载内容: {queries}")
+        if isinstance(queries, str):
+            queries = [queries]
+        data = get_heu_result(args, algos, queries)
         print(f"工作负载 {work_idx} 处理完成")
         print(f"结果: {data}")
         datas.append(data)
