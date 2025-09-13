@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import configparser
 import json
+import multiprocessing as mp
+from functools import partial
 
 from index_advisor_selector.index_selection.heu_selection.heu_algos.anytime_algorithm import (
     AnytimeAlgorithm,
@@ -74,6 +76,18 @@ class IndexEncoder(json.JSONEncoder):
 
         # 👇️ otherwise use the default behavior
         return json.JSONEncoder.default(self, obj)
+
+
+def process_single_workload(work_idx_and_queries, args, algos):
+    """处理单个工作负载的函数，用于多进程执行"""
+    work_idx, queries = work_idx_and_queries
+    print(f"=== 进程 {mp.current_process().name} 处理工作负载 {work_idx} ===")
+    print(f"工作负载内容: {str(queries):.100s}")
+    if isinstance(queries, str):
+        queries = [queries]
+    data = get_heu_result(args, algos, queries)
+    print(f"进程 {mp.current_process().name} 完成工作负载 {work_idx}")
+    return work_idx, data
 
 
 def get_heu_result(args, algos, work_list: list[str]):
@@ -204,8 +218,8 @@ def get_heu_result(args, algos, work_list: list[str]):
                 for ind, col in zip(indexes, cols)
             ]
 
-            if indexes:
-                print(f"推荐的索引: {indexes}")
+            if indexes_res:
+                print(f"推荐的索引: {indexes_res}")
             else:
                 print("未找到推荐索引")
 
@@ -296,17 +310,22 @@ def get_heu_result(args, algos, work_list: list[str]):
 
 
 if __name__ == "__main__":
+    # 设置多进程启动方法（特别是在某些平台上需要）
+    mp.set_start_method("spawn", force=True)
+
     """
     uv run heu_run.py --work_file inputs/tpch_2000.sql \
     --res_save res/tpch_2000.json \
     --algo extend \
     --exp_conf_file configuration_loader/index_advisor/heu_run_conf/extend_config.json \
     --schema_file configuration_loader/database/schema_tpch.json \
-    --db_conf_file configuration_loader/database/db_con.conf
+    --db_conf_file configuration_loader/database/db_con.conf \
+    --worker 4
     """
     print("=== 启动索引建议器程序 ===")
 
     parser = get_parser()
+    parser.add_argument("--worker", type=int, default=1, help="用于处理的进程数")
     args = parser.parse_args()
 
     algos = [args.algo] if args.algo else ALGORITHMS.keys()
@@ -351,16 +370,34 @@ if __name__ == "__main__":
         print("未能读取工作负载文件")
         exit(1)
 
-    datas = []
-    for work_idx, queries in enumerate(work_list, 1):
-        print(f"=== 处理工作负载 {work_idx}/{len(work_list)} ===")
-        print(f"工作负载内容: {queries}")
-        if isinstance(queries, str):
-            queries = [queries]
-        data = get_heu_result(args, algos, queries)
-        print(f"工作负载 {work_idx} 处理完成")
-        print(f"结果: {data}")
-        datas.append(data)
+    # 准备数据用于多进程处理
+    work_items = [(work_idx, queries) for work_idx, queries in enumerate(work_list, 1)]
+
+    print(f"使用 {args.worker} 个进程处理 {len(work_list)} 个工作负载")
+
+    if args.worker == 1:
+        # 单进程执行
+        datas = []
+        for work_idx, queries in work_items:
+            print(f"=== 处理工作负载 {work_idx}/{len(work_list)} ===")
+            print(f"工作负载内容: {str(queries):.100s}")
+            if isinstance(queries, str):
+                queries = [queries]
+            data = get_heu_result(args, algos, queries)
+            print(f"工作负载 {work_idx} 处理完成")
+            datas.append(data)
+    else:
+        # 多进程执行
+        with mp.Pool(processes=args.worker) as pool:
+            # 使用 partial 来传递 args 和 algos 参数
+            process_func = partial(process_single_workload, args=args, algos=algos)
+
+            # 执行多进程处理
+            results = pool.map(process_func, work_items)
+
+            # 按原始顺序排序结果
+            results.sort(key=lambda x: x[0])  # 按 work_idx 排序
+            datas = [result[1] for result in results]  # 提取数据部分
 
     print(f"所有 {len(work_list)} 个工作负载处理完成")
 
