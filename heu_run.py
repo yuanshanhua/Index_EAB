@@ -155,23 +155,18 @@ def get_heu_result(args, algos, work_list: list[str]):
             # (0818): newly added.
             if args.constraint is not None:
                 config["parameters"]["constraint"] = args.constraint
-                print(f"设置约束条件: {args.constraint}")
             if args.budget_MB is not None:
                 config["parameters"]["budget_MB"] = args.budget_MB
-                print(f"设置存储预算: {args.budget_MB} MB")
             if args.max_indexes is not None:
                 config["parameters"]["max_indexes"] = args.max_indexes
-                print(f"设置最大索引数: {args.max_indexes}")
 
             # (0926): newly added.
             if "max_index_width" in args and args.max_index_width is not None:
                 config["parameters"]["max_index_width"] = args.max_index_width
-                print(f"设置最大索引宽度: {args.max_index_width}")
 
             # (0918): newly added.
             if algo == "drop" and "multi_column" in args:
                 config["parameters"]["multi_column"] = args.multi_column
-                print(f"设置多列索引: {args.multi_column}")
 
             # (1211): newly added. for `cophy`
             if algo == "cophy":
@@ -179,9 +174,8 @@ def get_heu_result(args, algos, work_list: list[str]):
                 config["parameters"]["ampl_mod_path"] = args.ampl_mod_path
                 config["parameters"]["ampl_dat_path"] = args.ampl_dat_path
                 config["parameters"]["ampl_solver"] = args.ampl_solver
-                print("配置CoPhY算法的AMPL参数")
 
-            print(f"初始化{algo}算法...")
+            print(f"初始化{algo}算法, 参数: {config['parameters']}")
             algorithm = ALGORITHMS[algo](
                 connector,
                 config["parameters"],
@@ -314,13 +308,14 @@ if __name__ == "__main__":
     mp.set_start_method("spawn", force=True)
 
     """
-    uv run heu_run.py --work_file inputs/tpch_2000.sql \
-    --res_save res/tpch_2000.json \
+    uv run heu_run.py --work_file ../index-advisor/workloads/index_eab/10q/tpch.2000.200w.5-15q.workload.json \
+    --res_save ../index-advisor/workloads/sft/tpch.2000.200w.5-15q.extend.json \
     --algo extend \
     --exp_conf_file configuration_loader/index_advisor/heu_run_conf/extend_config.json \
     --schema_file configuration_loader/database/schema_tpch.json \
     --db_conf_file configuration_loader/database/db_con.conf \
-    --worker 4
+    --worker 64 \
+    --db_name tpch1g
     """
     print("=== 启动索引建议器程序 ===")
 
@@ -332,12 +327,12 @@ if __name__ == "__main__":
     print(f"使用算法: {algos}")
 
     args.constraint = "storage"
-    args.budget_MB = 500
-    print(f"约束条件: {args.constraint}, 存储预算: {args.budget_MB} MB")
+    # args.budget_MB = 500
+    # print(f"约束条件: {args.constraint}, 存储预算: {args.budget_MB} MB")
 
     # args.constraint = "number"
-    args.max_indexes = 5
-    print(f"最大索引数: {args.max_indexes}")
+    # args.max_indexes = 5
+    # print(f"最大索引数: {args.max_indexes}")
 
     args.multi_column = True
     print(f"支持多列索引: {args.multi_column}")

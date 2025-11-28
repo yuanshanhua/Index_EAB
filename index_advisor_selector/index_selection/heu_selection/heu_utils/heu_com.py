@@ -39,8 +39,8 @@ def get_parser():
     parser.add_argument(
         "--constraint", type=str, default="storage", choices=["storage", "number"]
     )
-    parser.add_argument("--budget_MB", type=int, default=500)
-    parser.add_argument("--max_indexes", type=int, default=5)
+    parser.add_argument("--budget_MB", type=int, default=None)
+    parser.add_argument("--max_indexes", type=int, default=None)
 
     parser.add_argument("--max_index_width", type=int, default=None)
 
