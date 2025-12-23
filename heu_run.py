@@ -82,7 +82,7 @@ def process_single_workload(work_idx_and_queries, args, algos):
     """处理单个工作负载的函数，用于多进程执行"""
     work_idx, queries = work_idx_and_queries
     print(f"=== 进程 {mp.current_process().name} 处理工作负载 {work_idx} ===")
-    print(f"工作负载内容: {str(queries):.100s}")
+    # print(f"工作负载内容: {str(queries):.100s}")
     if isinstance(queries, str):
         queries = [queries]
     data = get_heu_result(args, algos, queries)
@@ -238,60 +238,60 @@ def get_heu_result(args, algos, work_list: list[str]):
             #     ind_cost.append(ind_cost_)
 
             # (0916): newly modified.
-            print("计算查询成本...")
-            freq_list = list()
-            for query_idx, query in enumerate(workload.queries, 1):
-                if query_idx % 10 == 0 or query_idx == len(workload.queries):
-                    print(f"正在计算查询 {query_idx}/{len(workload.queries)} 的成本")
+            # print("计算查询成本...")
+            # freq_list = list()
+            # for query_idx, query in enumerate(workload.queries, 1):
+            #     if query_idx % 10 == 0 or query_idx == len(workload.queries):
+            #         print(f"正在计算查询 {query_idx}/{len(workload.queries)} 的成本")
 
-                no_cost_ = connector.get_ind_cost(query.text, "") * query.frequency
-                total_no_cost += no_cost_
-                no_cost.append(no_cost_)
+            #     no_cost_ = connector.get_ind_cost(query.text, "") * query.frequency
+            #     total_no_cost += no_cost_
+            #     no_cost.append(no_cost_)
 
-                ind_cost_ = (
-                    connector.get_ind_cost(query.text, indexes) * query.frequency
-                )
-                total_ind_cost += ind_cost_
-                ind_cost.append(ind_cost_)
+            #     ind_cost_ = (
+            #         connector.get_ind_cost(query.text, indexes) * query.frequency
+            #     )
+            #     total_ind_cost += ind_cost_
+            #     ind_cost.append(ind_cost_)
 
-                freq_list.append(query.frequency)
+            #     freq_list.append(query.frequency)
 
-            cost_reduction = total_no_cost - total_ind_cost
-            cost_reduction_pct = (
-                (cost_reduction / total_no_cost * 100) if total_no_cost > 0 else 0
-            )
-            print(
-                f"成本分析完成 - 无索引总成本: {total_no_cost:.2f}, 有索引总成本: {total_ind_cost:.2f}"
-            )
-            print(f"成本降低: {cost_reduction:.2f} ({cost_reduction_pct:.2f}%)")
+            # cost_reduction = total_no_cost - total_ind_cost
+            # cost_reduction_pct = (
+            #     (cost_reduction / total_no_cost * 100) if total_no_cost > 0 else 0
+            # )
+            # print(
+            #     f"成本分析完成 - 无索引总成本: {total_no_cost:.2f}, 有索引总成本: {total_ind_cost:.2f}"
+            # )
+            # print(f"成本降低: {cost_reduction:.2f} ({cost_reduction_pct:.2f}%)")
 
             # (0916): newly added.
-            if args.varying_frequencies:
-                data.append(
-                    {
-                        "config": config["parameters"],
-                        "workload": [work_list, freq_list],
-                        "indexes": indexes_res,
-                        "no_cost": no_cost,
-                        "total_no_cost": total_no_cost,
-                        "ind_cost": ind_cost,
-                        "total_ind_cost": total_ind_cost,
-                        "sel_info": sel_info,
-                    }
-                )
-            else:
-                data.append(
-                    {
-                        "config": config["parameters"],
-                        "workload": work_list,
-                        "indexes": indexes_res,
-                        "no_cost": no_cost,
-                        "total_no_cost": total_no_cost,
-                        "ind_cost": ind_cost,
-                        "total_ind_cost": total_ind_cost,
-                        "sel_info": sel_info,
-                    }
-                )
+            # if args.varying_frequencies:
+            #     data.append(
+            #         {
+            #             "config": config["parameters"],
+            #             "workload": [work_list, freq_list],
+            #             "indexes": indexes_res,
+            #             "no_cost": no_cost,
+            #             "total_no_cost": total_no_cost,
+            #             "ind_cost": ind_cost,
+            #             "total_ind_cost": total_ind_cost,
+            #             "sel_info": sel_info,
+            #         }
+            #     )
+            # else:
+            data.append(
+                {
+                    "config": config["parameters"],
+                    "workload": work_list,
+                    "indexes": indexes_res,
+                    "no_cost": no_cost,
+                    "total_no_cost": total_no_cost,
+                    "ind_cost": ind_cost,
+                    "total_ind_cost": total_ind_cost,
+                    "sel_info": sel_info,
+                }
+            )
 
         if len(data) == 1:
             data = data[0]
@@ -388,7 +388,7 @@ if __name__ == "__main__":
             process_func = partial(process_single_workload, args=args, algos=algos)
 
             # 执行多进程处理
-            results = pool.map(process_func, work_items)
+            results = pool.map(process_func, work_items, chunksize=2)
 
             # 按原始顺序排序结果
             results.sort(key=lambda x: x[0])  # 按 work_idx 排序
