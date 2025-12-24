@@ -430,7 +430,7 @@ if __name__ == "__main__":
             process_func = partial(process_single_workload, args=args, algos=algos)
 
             # 执行多进程处理
-            results = pool.map(process_func, work_items, chunksize=2)
+            results = pool.map(process_func, work_items, chunksize=1)
 
             # 按原始顺序排序结果
             results.sort(key=lambda x: x[0])  # 按 work_idx 排序
