@@ -1,5 +1,5 @@
-import re
 import logging
+import re
 
 import psycopg2
 
@@ -7,9 +7,19 @@ from .database_connector import DatabaseConnector
 
 
 class PostgresDatabaseConnector(DatabaseConnector):
-    def __init__(self, config, autocommit=False, host=None,
-                 port=None, db_name=None, user=None, password=None):
+    def __init__(
+        self,
+        config,
+        autocommit=False,
+        host=None,
+        port=None,
+        db_name=None,
+        user=None,
+        password=None,
+    ):
         DatabaseConnector.__init__(self, config, autocommit=autocommit)
+
+        self.logger = logging.getLogger("advisor.db")
 
         self.db_system = "postgres"
         self._connection = None
@@ -41,25 +51,25 @@ class PostgresDatabaseConnector(DatabaseConnector):
         # Set the random seed to obtain deterministic statistics
         self.set_random_seed()
 
-        logging.disable(logging.DEBUG)
-        # logging.info("Postgres connector created: {}({})".format(self.db_name, self.host))
-        logging.disable(logging.INFO)
-
     def create_connection(self):
         if self._connection:
             self.close()
 
-        self._connection = psycopg2.connect(host=self.host,
-                                            database=self.db_name,
-                                            port=self.port,
-                                            user=self.user,
-                                            password=self.password)
+        self._connection = psycopg2.connect(
+            host=self.host,
+            database=self.db_name,
+            port=self.port,
+            user=self.user,
+            password=self.password,
+        )
         self._connection.autocommit = self.autocommit
         self._cursor = self._connection.cursor()
-        logging.debug("Database connector created: {} on {}".format(self.db_name, self.host))
+        self.logger.debug(
+            "Database connector created: {} on {}".format(self.db_name, self.host)
+        )
 
     def set_random_seed(self, value=0.17):
-        logging.info(f"Postgres: Set random seed `SELECT setseed({value})`")
+        self.logger.info(f"Postgres: Set random seed `SELECT setseed({value})`")
         self.exec_only(f"SELECT setseed({value})")
 
     def enable_simulation(self):
@@ -107,7 +117,7 @@ class PostgresDatabaseConnector(DatabaseConnector):
 
     def create_database(self, database_name):
         self.exec_only("create database {}".format(database_name))
-        logging.info("Database {} created".format(database_name))
+        self.logger.info("Database {} created".format(database_name))
 
     def import_data(self, table, path, delimiter="|"):
         with open(path, "r") as file:
@@ -128,10 +138,10 @@ class PostgresDatabaseConnector(DatabaseConnector):
         statement = f"DROP DATABASE {database_name};"
         self.exec_only(statement)
 
-        logging.info(f"Database {database_name} dropped")
+        self.logger.info(f"Database {database_name} dropped")
 
     def create_statistics(self):
-        logging.info("Postgres: Run `analyze`")
+        self.logger.info("Postgres: Run `analyze`")
         self.commit()
         self._connection.autocommit = True
         # : blocked?
@@ -153,10 +163,10 @@ class PostgresDatabaseConnector(DatabaseConnector):
 
         # (0415): newly added. for column_name = keyword
         if "group" in statement:
-            statement = statement.replace("(group)", "(\"group\")")
-            statement = statement.replace("(group,", "(\"group\",")
-            statement = statement.replace(",group,", ",\"group\",")
-            statement = statement.replace(",group)", "\"group\")")
+            statement = statement.replace("(group)", '("group")')
+            statement = statement.replace("(group,", '("group",')
+            statement = statement.replace(",group,", ',"group",')
+            statement = statement.replace(",group)", '"group")')
 
         result = self.exec_fetch(statement)
 
@@ -176,7 +186,7 @@ class PostgresDatabaseConnector(DatabaseConnector):
         )
         self.exec_only(statement)
         size = self.exec_fetch(
-            f"select relpages from pg_class c " f"where c.relname = '{index.index_idx()}'"
+            f"select relpages from pg_class c where c.relname = '{index.index_idx()}'"
         )
         size = size[0]
         index.estimated_size = size * 8 * 1024
@@ -234,12 +244,12 @@ class PostgresDatabaseConnector(DatabaseConnector):
         return query_plan
 
     def drop_hypo_indexes(self):
-        logging.info("Dropping hypo indexes")
+        self.logger.info("Dropping hypo indexes")
         stmt = "SELECT * FROM hypopg_reset();"
         self.exec_only(stmt)
 
     def drop_indexes(self):
-        logging.info("Dropping indexes")
+        self.logger.info("Dropping indexes")
         stmt = "select indexname from pg_indexes where schemaname='public'"
         indexes = self.exec_fetch(stmt, one=False)
         for index in indexes:
@@ -247,7 +257,7 @@ class PostgresDatabaseConnector(DatabaseConnector):
             # (0408): newly added for real.
             if "_pkey" not in index_name and "primary" not in index_name:
                 drop_stmt = "drop index {}".format(index_name)
-                logging.debug("Dropping index {}".format(index_name))
+                self.logger.debug("Dropping index {}".format(index_name))
                 self.exec_only(drop_stmt)
 
     # PostgreSQL expects the timeout in milliseconds
@@ -264,7 +274,7 @@ class PostgresDatabaseConnector(DatabaseConnector):
             plan = self.exec_fetch(statement, one=True)[0][0]["Plan"]
             result = plan["Actual Total Time"], plan
         except Exception as e:
-            logging.error(f"{query.nr}, {e}")
+            self.logger.error(f"{query.nr}, {e}")
             self._connection.rollback()
             result = None, self._get_plan(query)
             # exp_res = timeout, self._get_plan(query)
@@ -338,8 +348,10 @@ class PostgresDatabaseConnector(DatabaseConnector):
 
     def get_cols(self, table):
         cols = []
-        sql = f"select column_name from information_schema.columns where " \
-              f"table_schema='public' and table_name='{table}'"
+        sql = (
+            f"select column_name from information_schema.columns where "
+            f"table_schema='public' and table_name='{table}'"
+        )
 
         rows = self.exec_fetch(sql, one=False)
         for row in rows:
