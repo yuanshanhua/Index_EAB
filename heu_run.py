@@ -12,6 +12,7 @@ import multiprocessing as mp
 import sys
 from functools import partial
 from logging.handlers import QueueHandler, QueueListener
+from time import time
 
 from index_advisor_selector.index_selection.heu_selection.heu_algos.anytime_algorithm import (
     AnytimeAlgorithm,
@@ -106,11 +107,14 @@ def process_single_workload(work_idx_and_queries, args, algos):
     """处理单个工作负载的函数，用于多进程执行"""
     work_idx, queries = work_idx_and_queries
     logger.info(f"=== 进程 {mp.current_process().name} 处理工作负载 {work_idx} ===")
+    st = time()
     # logger.info(f"工作负载内容: {str(queries):.100s}")
     if isinstance(queries, str):
         queries = [queries]
     data = get_heu_result(args, algos, queries)
-    logger.info(f"进程 {mp.current_process().name} 完成工作负载 {work_idx}")
+    logger.info(
+        f"进程 {mp.current_process().name} 完成工作负载 {work_idx}, 耗时 {time() - st:.2f} 秒"
+    )
     return work_idx, data
 
 
@@ -211,7 +215,8 @@ def get_heu_result(args, algos, work_list: list[str]):
 
             # return algorithm.get_index_candidates(workload, db_conf=db_conf, columns=columns)
 
-            logger.info("计算最佳索引...")
+            logger.info(f"使用 {algo} 计算最佳索引...")
+            st = time()
             if not args.process and not args.overhead:
                 sel_info = ""
                 indexes = algorithm.calculate_best_indexes(
@@ -222,7 +227,9 @@ def get_heu_result(args, algos, work_list: list[str]):
                     workload, overhead=args.overhead, db_conf=db_conf, columns=columns
                 )
 
-            logger.info(f"找到 {len(indexes)} 个推荐索引")
+            logger.info(
+                f"算法 {algo} 找到 {len(indexes)} 个推荐索引, 耗时 {time() - st:.2f} 秒"
+            )
 
             indexes = [str(ind) for ind in indexes]
             cols = [ind.split(",") for ind in indexes]
